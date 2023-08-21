@@ -125,71 +125,70 @@ public:
     
     
     // Fetch the data in the each container, merge them and then publish them
-    void MergeAndFilter()
+    sensor_msgs::PointCloud2Ptr MergePointClouds()
     {
-        
-
         if (cloud1_transformed_ && cloud2_transformed_ && cloud3_transformed_ && cloud4_transformed_) 
         {
             sensor_msgs::PointCloud2Ptr cloud_all(new sensor_msgs::PointCloud2);
-            // ROS_INFO("All of the pointcloud available.");
             pcl::concatenatePointCloud(*cloud1_transformed_, *cloud2_transformed_, *cloud_all);
             pcl::concatenatePointCloud(*cloud_all, *cloud3_transformed_, *cloud_all);
             pcl::concatenatePointCloud(*cloud_all, *cloud4_transformed_, *cloud_all);
             cloud_all->header.stamp = ros::Time::now();
             merged_pub_.publish(*cloud_all);
             // ROS_INFO("Merged pointcloud published.");
-        
-            // Convert the sensor_msgs/PointCloud2 data to pcl/PointCloud
-            pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_all_pcl(new pcl::PointCloud<pcl::PointXYZ>);
-            pcl::fromROSMsg(*cloud_all, *cloud_all_pcl);
-
-            // Downsample the merged pcl
-            pcl::PointCloud<pcl::PointXYZ>::Ptr merged_cloud_downsampled_pcl(new pcl::PointCloud<pcl::PointXYZ>);
-            pcl::VoxelGrid<pcl::PointXYZ> sor;
-            sor.setInputCloud (cloud_all_pcl);
-            sor.setLeafSize (0.1f, 0.1f, 0.1f);
-            sor.filter (*merged_cloud_downsampled_pcl);
-            sensor_msgs::PointCloud2Ptr merged_cloud_downsampled(new sensor_msgs::PointCloud2);
-            pcl::toROSMsg(*merged_cloud_downsampled_pcl, *merged_cloud_downsampled);
-            merged_downsampled_pub_.publish(*merged_cloud_downsampled);
-
-            // Iterate through all the bounding boxes
-            for (const auto& box : bounding_boxes)
-            {
-                // Crop the cloud
-                pcl::CropBox<pcl::PointXYZ> crop;
-                crop.setInputCloud(cloud_all_pcl);
-                crop.setMin(std::get<0>(box));
-                crop.setMax(std::get<1>(box));
-                // crop.setRotation(std::get<2>(box));
-                // Set the filter to negative, which means we're removing the points inside the box rather than keeping them.
-                crop.setNegative(true);
-                // Apply the filter
-                pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-                crop.filter(*temp_cloud);
-                
-                cloud_all_pcl = temp_cloud;
-            }
-            pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud_pcl(new pcl::PointCloud<pcl::PointXYZ>());
-            filtered_cloud_pcl = cloud_all_pcl;
-
-            // Downsample the filetered cloud
-           
-            pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud_downsampled_pcl(new pcl::PointCloud<pcl::PointXYZ>);
-            sor.setInputCloud (filtered_cloud_pcl);
-            sor.setLeafSize (0.1f, 0.1f, 0.1f);
-            sor.filter (*filtered_cloud_downsampled_pcl);
-
-            // Convert it back and publish
-            sensor_msgs::PointCloud2Ptr filtered_cloud_downsampled(new sensor_msgs::PointCloud2);
-            pcl::toROSMsg(*filtered_cloud_downsampled_pcl, *filtered_cloud_downsampled);
-            flitered_pub_.publish(*filtered_cloud_downsampled);
-            ROS_INFO("Filtered pointcloud published.");
+            return cloud_all;
         }
+        return nullptr;
+    }
         
+    void FilterPointClouds(sensor_msgs::PointCloud2Ptr cloud_all)
+    {
+        // Convert the sensor_msgs/PointCloud2 data to pcl/PointCloud
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_all_pcl(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::fromROSMsg(*cloud_all, *cloud_all_pcl);
+
+        // Downsample the merged pcl
+        pcl::PointCloud<pcl::PointXYZ>::Ptr merged_cloud_downsampled_pcl(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::VoxelGrid<pcl::PointXYZ> sor;
+        sor.setInputCloud(cloud_all_pcl);
+        sor.setLeafSize(0.1f, 0.1f, 0.1f);
+        sor.filter(*merged_cloud_downsampled_pcl);
+        sensor_msgs::PointCloud2Ptr merged_cloud_downsampled(new sensor_msgs::PointCloud2);
+        pcl::toROSMsg(*merged_cloud_downsampled_pcl, *merged_cloud_downsampled);
+        merged_downsampled_pub_.publish(*merged_cloud_downsampled);
+
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cropped_cloud_pcl = merged_cloud_downsampled_pcl->makeShared();
+        // Iterate through all the bounding boxes
+        for (const auto& box : bounding_boxes)
+        {
+            // Crop the cloud
+            pcl::CropBox<pcl::PointXYZ> crop;
+            crop.setInputCloud(cropped_cloud_pcl);
+            crop.setMin(std::get<0>(box));
+            crop.setMax(std::get<1>(box));
+            // Set the filter to negative, which means we're removing the points inside the box rather than keeping them.
+            crop.setNegative(true);
+            // Apply the filter
+            pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+            crop.filter(*temp_cloud);
+            cropped_cloud_pcl = temp_cloud;
+        }
+
+        // Convert it back and publish
+        sensor_msgs::PointCloud2Ptr cropped_cloud(new sensor_msgs::PointCloud2);
+        pcl::toROSMsg(*cropped_cloud_pcl, *cropped_cloud);
+        flitered_pub_.publish(*cropped_cloud);
+        ROS_INFO("Cropped pointclouds published.");
     }
     
+    void MergeAndFilter()
+    {
+        sensor_msgs::PointCloud2Ptr merged_cloud = MergePointClouds();
+        if (merged_cloud) 
+        {
+                FilterPointClouds(merged_cloud);
+        }
+    }
     
     
     void run()
