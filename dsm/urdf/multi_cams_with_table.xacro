@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<robot name="multi_cams_with_table" xmlns:xacro="http://ros.org/wiki/xacro">
+  <!-- Include the camera system Xacro -->
+  <xacro:include filename="$(find realsense2_description)/urdf/_d435.urdf.xacro"/>
+
+  <xacro:sensor_d435 name="camera1" topics_ns="camera1" parent="world" publish_pointcloud="true">
+    <origin xyz="-2.5 -2.5 4" rpy="0 0.7864 0.7864"/>
+  </xacro:sensor_d435>
+
+  <xacro:sensor_d435 name="camera2" topics_ns="camera2" parent="world" publish_pointcloud="true">
+    <origin xyz="2.5 -2.5 4" rpy="0 0.7864 2.3592"/>
+  </xacro:sensor_d435>
+
+  <xacro:sensor_d435 name="camera3" topics_ns="camera3" parent="world" publish_pointcloud="true">
+    <origin xyz="-2.5 2.5 4" rpy="0 0.7864 -0.7864"/>
+  </xacro:sensor_d435>
+
+  <xacro:sensor_d435 name="camera4" topics_ns="camera4" parent="world" publish_pointcloud="true">
+    <origin xyz="2.5 2.5 4" rpy="0 0.7864 3.932"/>
+  </xacro:sensor_d435>
+
+  <!-- Define the table link -->
+  <link name="table">
+    <visual>
+      <geometry>
+        <box size="1.0 1.0 1.0"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="1.0 1.0 1.0"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="world"/>
+  
+  <!-- Define the joints -->
+  <joint name="world_to_table" type="fixed">
+    <parent link="world"/>
+    <child link="table"/>
+    <origin xyz="0 0 0.5" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="table_to_robot_base_link" type="fixed">
+    <parent link="table"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0.5" rpy="0 0 0"/>
+  </joint>
+
+</robot>
