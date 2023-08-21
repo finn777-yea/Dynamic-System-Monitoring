@@ -30,7 +30,6 @@ public:
         camera3_sub_ = nh_.subscribe("/camera3/depth/color/points", 1, &PointCloudProcessorNode::Transform3, this);
         camera4_sub_ = nh_.subscribe("/camera4/depth/color/points", 1, &PointCloudProcessorNode::Transform4, this);
         aabbs_sub_ = nh_.subscribe("/aabbs", 1, &PointCloudProcessorNode::aabbCallback, this);
-        obbs_validation_pub_ = nh_.advertise<visualization_msgs::Marker>("/obbs_vali", 1);
         merged_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/merged_pointcloud", 1);
         merged_downsampled_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/merged_downsampled_pointcloud", 1);
         flitered_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/filtered_pointcloud", 1);
@@ -158,45 +157,8 @@ public:
             // Iterate through all the bounding boxes
             for (const auto& box : bounding_boxes)
             {
-                pcl::CropBox<pcl::PointXYZ> crop;
-                
-                visualization_msgs::Marker marker;
-                marker.header.frame_id = "world";
-                marker.header.stamp = ros::Time::now();
-                marker.ns = "bounding_boxes";
-                marker.id = std::distance(bounding_boxes.begin(), std::find(bounding_boxes.begin(), bounding_boxes.end(), box));
-                marker.type = visualization_msgs::Marker::CUBE;
-                marker.action = visualization_msgs::Marker::ADD;
-
-                Eigen::Vector4f min_point = std::get<0>(box);
-                Eigen::Vector4f max_point = std::get<1>(box);
-                Eigen::Vector3f rotation = std::get<2>(box);
-
-                marker.pose.position.x = (max_point[0] + min_point[0]) / 2;
-                marker.pose.position.y = (max_point[1] + min_point[1]) / 2;
-                marker.pose.position.z = (max_point[2] + min_point[2]) / 2;
-
-                marker.scale.x = std::abs(max_point[0] - min_point[0]);
-                marker.scale.y = std::abs(max_point[1] - min_point[1]);
-                marker.scale.z = std::abs(max_point[2] - min_point[2]);
-
-                Eigen::Quaternionf quat(Eigen::AngleAxisf(rotation[2], Eigen::Vector3f::UnitZ()) *
-                                        Eigen::AngleAxisf(rotation[1], Eigen::Vector3f::UnitY()) *
-                                        Eigen::AngleAxisf(rotation[0], Eigen::Vector3f::UnitX()));
-
-                marker.pose.orientation.x = quat.x();
-                marker.pose.orientation.y = quat.y();
-                marker.pose.orientation.z = quat.z();
-                marker.pose.orientation.w = quat.w();
-
-                marker.color.r = 1.0;
-                marker.color.g = 0.0;
-                marker.color.b = 0.0;
-                marker.color.a = 0.5;
-
-                obbs_validation_pub_.publish(marker);
-                
                 // Crop the cloud
+                pcl::CropBox<pcl::PointXYZ> crop;
                 crop.setInputCloud(cloud_all_pcl);
                 crop.setMin(std::get<0>(box));
                 crop.setMax(std::get<1>(box));
@@ -245,7 +207,6 @@ private:
     ros::Subscriber camera4_sub_;
     ros::Subscriber aabbs_sub_;
     ros::Publisher merged_pub_;
-    ros::Publisher obbs_validation_pub_;
     ros::Publisher merged_downsampled_pub_;
     ros::Publisher flitered_pub_;
     tf::TransformListener* tf_listener;
