@@ -1,0 +1,2 @@
+string link_name
+sensor_msgs/PointCloud2 bounding_box

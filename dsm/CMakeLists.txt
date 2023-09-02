@@ -7,6 +7,7 @@ project(dsm)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+find_package(PCL REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
@@ -21,7 +22,6 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_core
   moveit_ros_planning_interface
   message_generation
-  PCL REQUIRED
 )
 
 ## System dependencies are found with CMake's conventions
@@ -62,6 +62,8 @@ add_message_files(
   FILES
   aabbs.msg
   aabbs_array.msg
+  bounding_box_array.msg
+  bounding_box.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -82,6 +84,7 @@ add_message_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  sensor_msgs
   geometry_msgs  # Or other packages containing msgs
 )
 
@@ -152,7 +155,7 @@ add_definitions(${PCL_DEFINITIONS})
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/dsm_node.cpp)
-add_executable(voxelization_node src/voxelization_node.cpp)
+# add_executable(voxelization_node src/voxelization_node.cpp)
 add_executable(joint_trajectory_planning_node src/joint_trajectory_planning_node.cpp)
 add_executable(compute_aabbs_node src/compute_aabbs.cpp)
 add_executable(point_cloud_processor_node src/point_cloud_processor_node.cpp)
@@ -172,10 +175,10 @@ add_executable(point_cloud_processor_node src/point_cloud_processor_node.cpp)
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-target_link_libraries(voxelization_node ${catkin_LIBRARIES})
+# target_link_libraries(voxelization_node ${catkin_LIBRARIES})
 target_link_libraries(joint_trajectory_planning_node ${catkin_LIBRARIES})
 target_link_libraries(compute_aabbs_node ${catkin_LIBRARIES})
-target_link_libraries(point_cloud_processor_node ${catkin_LIBRARIES})
+target_link_libraries(point_cloud_processor_node ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 #############
 ## Install ##
 #############

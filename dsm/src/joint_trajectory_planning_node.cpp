@@ -8,34 +8,54 @@ int main(int argc, char** argv)
 
     ros::Publisher pub = nh.advertise<trajectory_msgs::JointTrajectory>("/pos_joint_traj_controller/command", 10);
 
-    trajectory_msgs::JointTrajectory trajectory;
-    trajectory.header.stamp = ros::Time::now();
-    trajectory.joint_names.push_back("shoulder_lift_joint");
-    trajectory.joint_names.push_back("elbow_joint");
-    trajectory.joint_names.push_back("shoulder_pan_joint");
-    trajectory.joint_names.push_back("wrist_1_joint");
-    trajectory.joint_names.push_back("wrist_2_joint");
-    trajectory.joint_names.push_back("wrist_3_joint");
+    trajectory_msgs::JointTrajectory trajectory1;
+    trajectory1.header.stamp = ros::Time::now();
+    trajectory1.joint_names.push_back("shoulder_lift_joint");
+    trajectory1.joint_names.push_back("elbow_joint");
+    trajectory1.joint_names.push_back("shoulder_pan_joint");
+    trajectory1.joint_names.push_back("wrist_1_joint");
+    trajectory1.joint_names.push_back("wrist_2_joint");
+    trajectory1.joint_names.push_back("wrist_3_joint");
     
-    trajectory_msgs::JointTrajectoryPoint point;
-    point.positions.push_back(-2.6); // position for shoulder_lift_joint
-    point.positions.push_back(1.3); // position for elbow_joint
-    point.positions.push_back(-5.2);
-    point.positions.push_back(-2.0);
-    point.positions.push_back(0.1);
-    point.positions.push_back(0.1);
+    trajectory_msgs::JointTrajectoryPoint point1;
+    point1.positions.push_back(-2.6); // position for shoulder_lift_joint
+    point1.positions.push_back(1.3); // position for elbow_joint
+    point1.positions.push_back(-5.2);
+    point1.positions.push_back(-2.0);
+    point1.positions.push_back(0.1);
+    point1.positions.push_back(0.1);
 
+    point1.time_from_start = ros::Duration(5);
+    trajectory1.points.push_back(point1);
 
+    trajectory_msgs::JointTrajectory trajectory2;
+    trajectory2.header.stamp = ros::Time::now();
+    trajectory2.joint_names.push_back("shoulder_lift_joint");
+    trajectory2.joint_names.push_back("elbow_joint");
+    trajectory2.joint_names.push_back("shoulder_pan_joint");
+    trajectory2.joint_names.push_back("wrist_1_joint");
+    trajectory2.joint_names.push_back("wrist_2_joint");
+    trajectory2.joint_names.push_back("wrist_3_joint");
+    
+    trajectory_msgs::JointTrajectoryPoint point2;
+    point2.positions.push_back(0); // position for shoulder_lift_joint
+    point2.positions.push_back(0); // position for elbow_joint
+    point2.positions.push_back(0);
+    point2.positions.push_back(0);
+    point2.positions.push_back(0);
+    point2.positions.push_back(0);
 
-    point.time_from_start = ros::Duration(3.0); // 1 second to reach the goal
-    trajectory.points.push_back(point);
+    point2.time_from_start = ros::Duration(5);
+    trajectory2.points.push_back(point2);
 
-    ros::Rate rate(10); // 10Hz
+    ros::Rate rate(1); // 10Hz
 
     while(ros::ok())
     {
-        pub.publish(trajectory);
-        rate.sleep();
+        pub.publish(trajectory1);
+        ros::Duration(5).sleep();
+        pub.publish(trajectory2);
+        ros::Duration(5).sleep();
     }
 
     return 0;

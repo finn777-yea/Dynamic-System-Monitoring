@@ -28,13 +28,28 @@
   <include file="$(find dsm)/launch/gazebo.launch">
     <arg name="controller_config_file" value="$(arg controller_config_file)"/>
     <arg name="controllers" value="$(arg controllers)"/>
-    <arg name="gui" value="true"/>
+    <arg name="gui" value="false"/>
     <arg name="paused" value="false"/>
     <arg name="stopped_controllers" value="$(arg stopped_controllers)"/>
   </include>
 
   <node pkg="dsm" type="compute_aabbs_node" name="compute_aabbs_node" output="screen"/>
     
+  <node pkg="dsm" type="point_cloud_processor_node" name="point_cloud_processor_node" output="screen"/>
+    
   <!-- default rviz-config: $(find dsm)/rviz/urdf.rviz -->
-  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find dsm)/rviz/ur10e_with_cameras.rviz" required="true" /> -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find dsm)/rviz/ur10e_scene_monitoring.rviz" required="true" />
+
+  <!-- Start octomap_server_node for voxelization -->
+  <node pkg="octomap_server" type="octomap_server_node" name="octomap_server">
+	<param name="resolution" value="0.03" />
+	<!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
+	<param name="frame_id" type="string" value="world" />
+	<!-- maximum range to integrate (speedup!) -->
+	<param name="sensor_model/max_range" value="5.0" />
+	<!-- data source to integrate (PointCloud2) -->
+	<remap from="cloud_in" to="/filtered_pointcloud" />
+	</node>
+
+
 </launch>

@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/JointState.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/robot_model/robot_model.h>
@@ -6,9 +7,19 @@
 #include <moveit/robot_model/aabb.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <dsm/aabbs.h>
 #include <dsm/aabbs_array.h>
+#include <dsm/bounding_box.h>
+#include <dsm/bounding_box_array.h>
 #include <set>
+#include <vector>
+#include <pcl/point_types.h>
+#include <pcl/common/common.h>
+#include <pcl_conversions/pcl_conversions.h>
+
+
+
 class compute_aabbs_node
 {
     private:
@@ -17,6 +28,8 @@ class compute_aabbs_node
     ros::Publisher aabbs_pub_;
     ros::Publisher obbs_marker_pub_;
     ros::Publisher obbs_pub_;
+    ros::Publisher bounding_box_vis_pub_;
+    ros::Publisher bounding_box_array_pub_;
     ros::Subscriber joint_states_sub_;
     sensor_msgs::JointState current_joint_states_;
     robot_model_loader::RobotModelLoader robot_model_loader_;
@@ -35,6 +48,8 @@ class compute_aabbs_node
         aabbs_pub_ = nh_.advertise<dsm::aabbs_array>("/aabbs", 1);
         obbs_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/obbs_markers", 1);
         obbs_pub_ = nh_.advertise<dsm::aabbs_array>("/obbs", 1);
+        bounding_box_vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/bounding_box_vis", 1);
+        bounding_box_array_pub_ = nh_.advertise<dsm::bounding_box_array>("/bounding_box_array", 1);
         joint_states_sub_ = nh_.subscribe("joint_states", 10, &compute_aabbs_node::jointStatesCallback, this);
     }   
     
@@ -59,13 +74,16 @@ class compute_aabbs_node
             visualization_msgs::MarkerArray aabbs_marker_array;
             visualization_msgs::Marker obbs_marker;
             visualization_msgs::MarkerArray obbs_marker_array;
+            visualization_msgs::Marker bbx_marker;
             dsm::aabbs_array aabbs_array;
+
+            bbx_marker.points.clear();
             
             //Iterate through all the links, compute their aabbs respectively
+            dsm::bounding_box_array boudingbox_array;
+            boudingbox_array.bounding_boxes.clear();
             for(const auto link_model : link_models)
             {
-                
-
                 if (names.count(link_model->getName()) >0)
                 {
                     
@@ -76,6 +94,7 @@ class compute_aabbs_node
                     const Eigen::Vector3d extents = link_model->getShapeExtentsAtOrigin();
 
                     transform.translate(link_model->getCenteredBoundingBoxOffset());
+                    // std::cout << "Transform as a matrix: \n" << transform.matrix() << "\n";
                     
                     //Compute the AABB of the link_model
                     moveit::core::AABB aabb;
@@ -83,32 +102,95 @@ class compute_aabbs_node
                 
                     //Publish the max and min of the aabb
                     dsm::aabbs aabbs;
-                    
                     aabbs.max.x = aabb.max()[0];
                     aabbs.max.y = aabb.max()[1];
                     aabbs.max.z = aabb.max()[2];
-
                     aabbs.min.x = aabb.min()[0];
                     aabbs.min.y = aabb.min()[1];
                     aabbs.min.z = aabb.min()[2];
-
                     aabbs.link_name = link_model->getName();
 
-                    //Add rotation infos to the msg for OBBs
+                    
+                    //Compute vertices of the obbs
                     Eigen::Quaterniond q(transform.linear());
-                    Eigen::Vector3d euler_angles = q.toRotationMatrix().eulerAngles(0, 1, 2);
-                    aabbs.rotation.x = euler_angles[0];
-                    aabbs.rotation.y = euler_angles[1]; 
-                    aabbs.rotation.z = euler_angles[2];
-                    aabbs_array.aabbs_array.push_back(aabbs);
                     
+                    double ex = extents[0] / 2;
+                    double ey = extents[1] / 2;
+                    double ez = extents[2] / 2;
 
+                    double xc = aabb.center()[0];
+                    double yc = aabb.center()[1];
+                    double zc = aabb.center()[2];
+                    Eigen::Vector3d center(xc, yc, zc);
+
+                    // Calculate the global coord. of 8 vertices and pub it
+                    std::vector<Eigen::Vector4d> vertices(8);
+                    vertices[0] = Eigen::Vector4d(-ex, -ey, -ez, 1);
+                    // Back lower-right corner
+                    vertices[1] = Eigen::Vector4d(ex, -ey, -ez, 1);
+                    // Back upper-left corner
+                    vertices[2] = Eigen::Vector4d(-ex, ey, -ez, 1);
+                    // Back upper-right corner
+                    vertices[3] = Eigen::Vector4d(ex, ey, -ez, 1);
+                    // Front lower-left corner
+                    vertices[4] = Eigen::Vector4d(-ex, -ey, ez, 1);
+                    // Front lower-right corner
+                    vertices[5] = Eigen::Vector4d(ex, -ey, ez, 1);
+                    // Front upper-left corner
+                    vertices[6] = Eigen::Vector4d(-ex, ey, ez, 1);
+                    // Front upper-right corner
+                    vertices[7] = Eigen::Vector4d(ex, ey, ez, 1);
+                    pcl::PointCloud<pcl::PointXYZ>::Ptr link_vertices_ptr (new pcl::PointCloud<pcl::PointXYZ>);
+                    for(int i = 0; i < 8; i++) {
+                        // Rotate the local vertex using the quaternion.
+                        Eigen::Vector4d rotated_vertex = transform * vertices[i];
+
+                        // Translate the vertex to the box's center.
+                        vertices[i] = rotated_vertex;
+                        pcl::PointXYZ pcl_point;
+                        geometry_msgs::Point bbx_vertices;
+                        bbx_vertices.x = vertices[i](0);
+                        bbx_vertices.y = vertices[i](1);
+                        bbx_vertices.z = vertices[i](2);
+                        pcl_point.x = vertices[i](0);
+                        pcl_point.y = vertices[i](1);
+                        pcl_point.z = vertices[i](2);
+                        link_vertices_ptr->push_back(pcl_point);
+                        bbx_marker.points.push_back(bbx_vertices);
+                    }
+
+                    // Convert bounding_box(contains 8 vertices of one link as pcl) to sensor_msg and push it back to bounding_box_array
+                    dsm::bounding_box bounding_box;
                     
+                    bounding_box.link_name = link_model->getName();
+                    pcl::toROSMsg(*link_vertices_ptr,bounding_box.bounding_box);
+                    bounding_box.bounding_box.header.frame_id = "world";
+                    bounding_box.bounding_box.header.stamp = ros::Time::now();
+                    
+                    boudingbox_array.bounding_boxes.push_back(bounding_box);
 
-                    //Log the AABB infos of the each link
-                    // ROS_INFO_STREAM("Link: " << link_model->getName());
-                    // ROS_INFO_STREAM("AABB Center: " << aabb.center().transpose());
-                    // ROS_INFO_STREAM("AABB Sizes: " << aabb.sizes().transpose());
+                    // Printing the bounding box information
+                    // std::cout << "OBB Vertices for link: " << bounding_box.link_name << std::endl;
+                    // for(const auto& point : link_vertices_ptr->points)
+                    // {
+                    //     std::cout << "(" << point.x << ", " << point.y << ", " << point.z << ")" << std::endl;
+                    // }
+
+                    // Visualize the bounding box
+                    bbx_marker.header.frame_id = "world";
+                    bbx_marker.header.stamp = ros::Time::now();
+                    bbx_marker.ns = "points";
+                    bbx_marker.id = 0;
+                    bbx_marker.type = visualization_msgs::Marker::POINTS;
+                    bbx_marker.action = visualization_msgs::Marker::ADD;
+                    bbx_marker.scale.x = 0.01;
+                    bbx_marker.scale.y = 0.01;
+                    bbx_marker.scale.z = 0.01;
+                    bbx_marker.color.a = 1.0;
+                    bbx_marker.color.r = 1.0;
+                    bbx_marker.color.g = 0.0;
+                    bbx_marker.color.b = 0.0;
+
                     
                     //Visualize the AABB of the each link
                     
@@ -140,7 +222,7 @@ class compute_aabbs_node
                     obbs_marker.pose.position.x = aabb.center()[0];
                     obbs_marker.pose.position.y = aabb.center()[1];
                     obbs_marker.pose.position.z = aabb.center()[2];
-                    // Eigen::Quaterniond q(transform.linear());
+                   
                     obbs_marker.pose.orientation.x = q.x();
                     obbs_marker.pose.orientation.y = q.y();
                     obbs_marker.pose.orientation.z = q.z();
@@ -157,9 +239,11 @@ class compute_aabbs_node
                     obbs_marker_array.markers.push_back(obbs_marker);
                     
                 }
-            }  
+            }
+            bounding_box_array_pub_.publish(boudingbox_array);
             aabbs_pub_.publish(aabbs_array);
             obbs_marker_pub_.publish(obbs_marker_array);
+            bounding_box_vis_pub_.publish(bbx_marker);
         }
     }
     

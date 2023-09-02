@@ -7,10 +7,9 @@
             },
             "includePath": [
                 "/opt/ros/noetic/include/**",
-                "/home/finn/catkin_workspace/src/tf2_test/include/**",
+                "/home/finn/catkin_workspace/src/**",
                 "/usr/include/**",
-                "/usr/include/pcl-1.10",
-                "/home/finn/catkin_workspace/devel/include/**"
+                "/usr/local/include"
             ],
             "name": "ROS",
             "intelliSenseMode": "gcc-x64",
