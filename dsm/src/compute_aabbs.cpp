@@ -47,7 +47,6 @@ class compute_aabbs_node
         aabbs_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/aabbs_markers", 1);
         aabbs_pub_ = nh_.advertise<dsm::aabbs_array>("/aabbs", 1);
         obbs_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/obbs_markers", 1);
-        obbs_pub_ = nh_.advertise<dsm::aabbs_array>("/obbs", 1);
         bounding_box_vis_pub_ = nh_.advertise<visualization_msgs::Marker>("/bounding_box_vis", 1);
         bounding_box_array_pub_ = nh_.advertise<dsm::bounding_box_array>("/bounding_box_array", 1);
         joint_states_sub_ = nh_.subscribe("joint_states", 10, &compute_aabbs_node::jointStatesCallback, this);

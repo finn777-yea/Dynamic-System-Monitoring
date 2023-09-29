@@ -27,9 +27,8 @@ public:
     {
         cloud_all_sub_ = nh_.subscribe("/cloud_concatenated", 1, &PointCloudProcessorNode::CloudAllCallback, this);
         // aabbs_sub_ = nh_.subscribe("/aabbs", 1, &PointCloudProcessorNode::aabbCallback, this);
-        bounding_boxes_sub_ =nh_.subscribe("/bounding_box_array", 1, &PointCloudProcessorNode::boundingboxesCallback, this);
-        
-        merged_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/merged_pointcloud", 1);
+        bounding_boxes_sub_ =nh_.subscribe("/bounding_box_array", 5, &PointCloudProcessorNode::boundingboxesCallback, this);
+        cloud_above_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/cloud_above", 1);
         merged_downsampled_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/merged_downsampled_pointcloud", 1);
         flitered_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/filtered_pointcloud", 1);
         hull_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/convex_hull", 1);
@@ -86,13 +85,20 @@ public:
         pass.setNegative (true);
         pass.setFilterLimits (-1, 0.1);
         pass.filter (*cloud_all_above_pcl);
+        
+        // Publish cloud_above
+        sensor_msgs::PointCloud2Ptr cloud_above(new sensor_msgs::PointCloud2);
+        pcl::toROSMsg(*cloud_all_above_pcl, *cloud_above);
+        cloud_above_pub_.publish(*cloud_above);
 
         // Downsample the merged pcl
         pcl::PointCloud<pcl::PointXYZ>::Ptr merged_cloud_downsampled_pcl(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::VoxelGrid<pcl::PointXYZ> sor;
         sor.setInputCloud(cloud_all_above_pcl);
-        sor.setLeafSize(0.1f, 0.1f, 0.1f);
+        sor.setLeafSize(0.08f, 0.08f, 0.08f);
         sor.filter(*merged_cloud_downsampled_pcl);
+        
+        // Publish merged_downsampled_cloud
         sensor_msgs::PointCloud2Ptr merged_cloud_downsampled(new sensor_msgs::PointCloud2);
         pcl::toROSMsg(*merged_cloud_downsampled_pcl, *merged_cloud_downsampled);
         merged_cloud_downsampled->header.frame_id = "world";
@@ -100,7 +106,7 @@ public:
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr cropped_cloud_pcl(new pcl::PointCloud<pcl::PointXYZ>);
         *cropped_cloud_pcl = *merged_cloud_downsampled_pcl;
-        ROS_INFO("Number of points before CropHull: %zu", cropped_cloud_pcl->points.size());
+        // ROS_INFO("Number of points before CropHull: %zu", cropped_cloud_pcl->points.size());
 
         pcl::ConvexHull<pcl::PointXYZ> hull;
         hull.setDimension(3);
@@ -113,7 +119,7 @@ public:
         {
             // ROS_INFO("Number of bounding boxes: %d", m_boundingboxes_pcl.size());
             hull.setInputCloud(cropbox);
-            ROS_INFO("Number of points in the cropbox: %zu", m_boundingboxes_pcl[0]->points.size());
+            // ROS_INFO("Number of points in the cropbox: %zu", m_boundingboxes_pcl[0]->points.size());
             std::vector<pcl::Vertices> polygon;
             
             hull.reconstruct(*surface_hull ,polygon);
@@ -193,6 +199,7 @@ private:
     ros::Publisher merged_pub_;
     ros::Publisher merged_downsampled_pub_;
     ros::Publisher hull_pub_;
+    ros::Publisher cloud_above_pub_;
     ros::Publisher cropbox_marker_array_pub_;
     ros::Publisher flitered_pub_;
     tf::TransformListener* tf_listener;

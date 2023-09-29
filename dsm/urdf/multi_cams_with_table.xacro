@@ -20,18 +20,54 @@
   </xacro:sensor_d435>
 
   <!-- Define the table link -->
-  <link name="table">
-    <visual>
-      <geometry>
-        <box size="1.0 1.0 1.0"/>
-      </geometry>
-    </visual>
-    <collision>
-      <geometry>
-        <box size="1.0 1.0 1.0"/>
-      </geometry>
-    </collision>
-  </link>
+<link name="table">
+  <visual>
+    <geometry>
+      <box size="1.0 1.0 1.0"/>
+    </geometry>
+    <material name="gray_color">
+      <color rgba="1 1 1 1.0"/> <!-- RGBA value for gray: R=0.5, G=0.5, B=0.5, Alpha=1.0 -->
+    </material>
+  </visual>
+  <collision>
+    <geometry>
+      <box size="1.0 1.0 1.0"/>
+    </geometry>
+  </collision>
+</link>
+
+ <!-- Define the obstacle links -->
+<link name="ob1">
+  <visual>
+    <geometry>
+      <box size="0.2 0.15 0.3"/>
+    </geometry>
+    <material name="red_color">
+      <color rgba="0.6 0.25 0.25 1.0"/> <!-- RGBA value for gray: R=0.5, G=0.5, B=0.5, Alpha=1.0 -->
+    </material>
+  </visual>
+  <collision>
+    <geometry>
+      <box size="0.2 0.15 0.3"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="ob2">
+  <visual>
+    <geometry>
+      <cylinder length="0.2" radius="0.1"/>
+    </geometry>
+    <material name="red_color">
+      <color rgba="0.6 0.25 0.25 1.0"/> <!-- RGBA value for gray: R=0.5, G=0.5, B=0.5, Alpha=1.0 -->
+    </material>
+  </visual>
+  <collision>
+    <geometry>
+      <cylinder length="0.2" radius="0.1"/>
+    </geometry>
+  </collision>
+</link>
 
   <link name="world"/>
   
@@ -46,6 +82,18 @@
     <parent link="table"/>
     <child link="base_link"/>
     <origin xyz="0 0 0.5" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="table_to_ob1" type="fixed">
+    <parent link="table"/>
+    <child link="ob1"/>
+    <origin xyz="-0.3 -0.3 0.5" rpy="0 0 0"/>
+  </joint>
+
+  <joint name="table_to_ob2" type="fixed">
+    <parent link="table"/>
+    <child link="ob2"/>
+    <origin xyz="0.2 -0.25 0.5" rpy="0 0 0"/>
   </joint>
 
 </robot>
